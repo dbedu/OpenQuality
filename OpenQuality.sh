@@ -1,12 +1,13 @@
 #!/bin/bash
 
 current_time="$(date +%Y_%m_%d_%H_%M_%S)"
-work_dir=".nodequality$current_time"
-bench_os_url="https://github.com/LloydAsp/NodeQuality/releases/download/v0.0.1/BenchOs.tar.gz"
-raw_file_prefix="https://raw.githubusercontent.com/LloydAsp/NodeQuality/refs/heads/main"
+work_dir=".openquality$current_time"
+# 注意：这些URL也已修改，您需要确保它们是实际可用的
+bench_os_url="https://github.com/dbedu/OpenQuality/releases/download/v0.0.1/BenchOs.tar.gz"
+raw_file_prefix="https://raw.githubusercontent.com/dbedu/OpenQuality/refs/heads/main"
 
 if uname -m | grep -Eq 'arm|aarch64'; then
-    bench_os_url="https://github.com/LloydAsp/NodeQuality/releases/download/v0.0.1/BenchOs-arm.tar.gz"
+    bench_os_url="https://github.com/dbedu/OpenQuality/releases/download/v0.0.1/BenchOs-arm.tar.gz"
 fi
 
 header_info_filename=header_info.log
@@ -24,23 +25,23 @@ function start_ascii(){
     echo -ne "\e[1;36m"
     cat <<- EOF
 
+ _______  _______  _______  _        _______           _______  _       __________________         
+(  ___  )(  ____ )(  ____ \( (    /|(  ___  )|\     /|(  ___  )( \      \__   __/\__   __/|\     /|
+| (   ) || (    )|| (    \/|  \  ( || (   ) || )   ( || (   ) || (         ) (      ) (   ( \   / )
+| |   | || (____)|| (__    |   \ | || |   | || |   | || (___) || |         | |      | |    \ (_) / 
+| |   | ||  _____)|  __)   | (\ \) || |   | || |   | ||  ___  || |         | |      | |     \   /  
+| |   | || (      | (      | | \   || | /\| || |   | || (   ) || |         | |      | |      ) (   
+| (___) || )      | (____/\| )  \  || (_\ \ || (___) || )   ( || (____/\___) (___   | |      | |   
+(_______)|/       (_______/|/    )_)(____\/_)(_______)|/     \|(_______/\_______/   )_(      \_/   
 
-███╗   ██╗ ██████╗ ██████╗ ███████╗ ██████╗ ██╗   ██╗ █████╗ ██╗     ██╗████████╗██╗   ██╗
-████╗  ██║██╔═══██╗██╔══██╗██╔════╝██╔═══██╗██║   ██║██╔══██╗██║     ██║╚══██╔══╝╚██╗ ██╔╝
-██╔██╗ ██║██║   ██║██║  ██║█████╗  ██║   ██║██║   ██║███████║██║     ██║   ██║    ╚████╔╝ 
-██║╚██╗██║██║   ██║██║  ██║██╔══╝  ██║▄▄ ██║██║   ██║██╔══██║██║     ██║   ██║     ╚██╔╝  
-██║ ╚████║╚██████╔╝██████╔╝███████╗╚██████╔╝╚██████╔╝██║  ██║███████╗██║   ██║      ██║   
-╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝   ╚═╝      ╚═╝   
-                                                                                          
-                                                                             
 Benchmark script for server, collects basic hardware information, IP quality and network quality
 
 The benchmark will be performed in a temporary system, and all traces will be deleted after that.
 Therefore, it has no impact on the original environment and supports almost all linux systems.
 
-Author: Lloyd@nodeseek.com
-Github: github.com/LloydAsp/NodeQuality
-Command: bash <(curl -sL https://run.NodeQuality.com)
+Author: YourName@example.com
+Github: github.com/dbedu/OpenQuality
+Command: bash <(curl -sL https://run.OpenQuality.com)
 
 	EOF
     echo -ne "\033[0m"
@@ -89,10 +90,10 @@ function pre_init(){
 function pre_cleanup(){
     # incase interupted last time
     clear_mount
-    if [[ "$work_dir" == *"nodequality"* ]]; then
+    if [[ "$work_dir" == *"openquality"* ]]; then
         rm -rf "${work_dir}"/*
     else
-        echo "Error: work_dir does not contain 'nodequality'!"
+        echo "Error: work_dir does not contain 'openquality'!"
         exit 1
     fi
 }
@@ -132,6 +133,10 @@ function load_part(){
 }
 
 function load_3rd_program(){
+    _blue "Installing necessary tools (jq)..."
+    chroot_run apt-get update -y > /dev/null 2>&1
+    chroot_run apt-get install -y jq > /dev/null 2>&1
+
     chroot_run wget https://github.com/nxtrace/NTrace-core/releases/download/v1.3.7/nexttrace_linux_amd64 -qO /usr/local/bin/nexttrace
     chroot_run chmod u+x /usr/local/bin/nexttrace
 }
@@ -171,17 +176,84 @@ function run_net_trace(){
     chroot_run bash <(curl -Ls Net.Check.Place) -R -n -S 123 -o /result/$backroute_trace_json_filename
 }
 
-uploadAPI="https://api.nodequality.com/api/v1/record"
+
+# ==================================================================
+# NEW FUNCTION: Display Parsed Results Locally
+# ==================================================================
+function display_local_summary(){
+    # 定义结果文件路径
+    local yabs_json="$result_directory/$yabs_json_filename"
+    local ip_json="$result_directory/$ip_quality_json_filename"
+    local net_json="$result_directory/$net_quality_json_filename"
+    local trace_json="$result_directory/$backroute_trace_json_filename"
+    
+    _green_bold "========== Server Performance Summary =========="
+
+    # --- 解析和显示系统基本信息 (来自 YABS) ---
+    if [ -f "$yabs_json" ]; then
+        _yellow_bold "\n[System & CPU Benchmarks]"
+        local cpu_model=$(jq -r '.cpu.model' "$yabs_json")
+        local geekbench5_score=$(jq -r '.geekbench[] | select(.version==5) | .scores.single' "$yabs_json")
+        
+        echo "CPU Model          : $cpu_model"
+        echo "Geekbench 5 Score  : $geekbench5_score"
+    fi
+
+    # --- 解析和显示磁盘性能 (来自 YABS) ---
+    if [ -f "$yabs_json" ]; then
+        _yellow_bold "\n[Disk Performance]"
+        # 提取第一个磁盘测试结果作为代表
+        local disk_test=$(jq -r '.disk_tests | to_entries | .[0].value' "$yabs_json")
+        local disk_speed_4k=$(echo "$disk_test" | jq -r '.["4k"]')
+        local disk_speed_64k=$(echo "$disk_test" | jq -r '.["64k"]')
+        local disk_speed_512k=$(echo "$disk_test" | jq -r '.["512k"]')
+        
+        echo "4K Block Speed     : $disk_speed_4k"
+        echo "64K Block Speed    : $disk_speed_64k"
+        echo "512K Block Speed   : $disk_speed_512k"
+    fi
+
+    # --- 解析和显示IP质量信息 ---
+    if [ -f "$ip_json" ]; then
+        _yellow_bold "\n[IP Quality Information]"
+        local ip=$(jq -r '.ip' "$ip_json")
+        local country=$(jq -r '.country_name' "$ip_json")
+        local asn=$(jq -r '.asn' "$ip_json")
+        local is_hosting=$(jq -r '.hosting' "$ip_json")
+        
+        echo "IP Address         : $ip"
+        echo "Location           : $country"
+        echo "ASN                : $asn"
+        echo "Is Hosting/Data Center : $is_hosting"
+    fi
+
+    # --- 解析和显示网络测速结果 ---
+    if [ -f "$net_json" ]; then
+        _yellow_bold "\n[Network Speed Test]"
+        printf "%-20s | %-15s | %-15s\n" "Location" "Upload Speed" "Download Speed"
+        echo "----------------------------------------------------"
+        # 使用 jq 循环处理每个测速点
+        jq -c '.speedtest[]' "$net_json" | while read -r line; do
+            local name=$(echo "$line" | jq -r '.name')
+            local upload=$(echo "$line" | jq -r '.upload.speed_formatted')
+            local download=$(echo "$line" | jq -r '.download.speed_formatted')
+            printf "%-20s | %-15s | %-15s\n" "$name" "$upload" "$download"
+        done
+    fi
+
+    _green_bold "\n================================================"
+    _blue "All tests are complete. Raw data is available in $result_directory"
+}
+
+
 function upload_result(){
-
-    chroot_run zip -j - "/result/*" > $work_dir/result.zip
-
-    base64 $work_dir/result.zip | curl -X POST  --data-binary @- $uploadAPI
-
-    echo
+    display_local_summary
 }
 
 function post_cleanup(){
+    echo ""
+    read -p "Press [Enter] key to finish and clean up all temporary files..."
+
     chroot_run umount -R /dev &> /dev/null
     clear_mount
 
@@ -189,14 +261,14 @@ function post_cleanup(){
 
     rm -rf $work_dir/BenchOs
 
-    if [[ "$work_dir" == *"nodequality"* ]]; then
+    if [[ "$work_dir" == *"openquality"* ]]; then
         rm -rf "${work_dir}"/
     else
-        echo "Error: work_dir does not contain 'nodequality'!"
+        echo "Error: work_dir does not contain 'openquality'!"
         exit 1
     fi
 
-    exit 1
+    exit 0
 }
 
 function sig_cleanup(){
@@ -206,7 +278,7 @@ function sig_cleanup(){
 }
 
 function post_check_mount(){
-    if mount | grep nodequality$current_time ; then
+    if mount | grep openquality$current_time ; then
         echo "出现了预料之外的情况，BenchOs目录的挂载未被清理干净，保险起见请重启后删除该目录" | tee $work_dir/error.log >&2
         exit
     fi
@@ -232,6 +304,7 @@ function ask_question(){
     echo -en "${yellow}Run Backroute Trace test? (Enter for default 'y') [y/n]: ${reset}"
     read run_net_trace_test
     run_net_trace_test=${run_net_trace_test:-y}
+
 }
 
 function main(){
