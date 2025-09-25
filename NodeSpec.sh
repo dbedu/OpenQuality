@@ -137,8 +137,8 @@ function load_part(){
 
 function load_3rd_program(){
     _blue "Installing necessary tools (jq)..."
-    chroot_run apt-get update -y > /dev/null 2>&1
-    chroot_run apt-get install -y jq > /dev/null 2>&1
+    chroot_run apt-get update -y
+    chroot_run apt-get install -y jq
 
     chroot_run wget https://github.com/nxtrace/NTrace-core/releases/download/v1.3.7/nexttrace_linux_amd64 -qO /usr/local/bin/nexttrace
     chroot_run chmod u+x /usr/local/bin/nexttrace
@@ -276,8 +276,19 @@ function post_cleanup(){
 
 function sig_cleanup(){
     trap '' INT TERM SIGHUP EXIT
-    _red "Cleaning, please wait a moment."
-    post_cleanup
+    _red "Interrupted. Cleaning up immediately..."
+
+    # Perform cleanup actions directly here
+    chroot_run umount -R /dev &> /dev/null
+    clear_mount
+    post_check_mount
+
+    if [[ "$work_dir" == *"NodeSpec"* ]]; then
+        rm -rf "${work_dir}"/
+    fi
+
+    _red "Cleanup complete."
+    exit 1
 }
 
 function post_check_mount(){
