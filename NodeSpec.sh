@@ -162,17 +162,26 @@ function run_yabs(){
         return 1
     fi
 
-    _blue "Executing YABS script with debug mode enabled..."
+    _blue "Executing YABS script..."
+
+    # 构建 YABS 参数
+    # -i : 跳过 iperf 网络测试
+    # -j : 将 JSON 结果打印到标准输出
+    # -w : 将 JSON 结果写入文件
+    # -5 : 明确指定运行 Geekbench 5
+    local yabs_params="-i -j -w /result/$yabs_json_filename -5"
 
     if ! curl -s 'https://browser.geekbench.com' --connect-timeout 5 >/dev/null; then
-        chroot_run bash /tmp/yabs.sh -s -- -gi -w /result/$yabs_json_filename
-        echo -e "对 IPv6 单栈的服务器来说进行测试没有意义，\n因为要将结果上传到 browser.geekbench.com 后才能拿到最后的跑分，\n但 browser.geekbench.com 仅有 IPv4、不支持 IPv6，测了也是白测。"
+        # IPv6-only 环境 (YABS 的 -g 标志会跳过所有 Geekbench 测试)
+        chroot_run bash /tmp/yabs.sh -g -i -w /result/$yabs_json_filename
+        echo -e "对 IPv6 单栈的服务器来说进行测试没有意义，因为无法连接 Geekbench。"
     else
+        # IPv4 or Dual Stack 环境
         virt=$(dmidecode -s system-product-name 2> /dev/null || virt-what | grep -v redhat | head -n 1 || echo "none")
         if [[ "${virt,,}" != "lxc" ]]; then
             check_swap 1>&2
         fi
-        chroot_run bash /tmp/yabs.sh -i -j -w /result/$yabs_json_filename -- -5i
+        chroot_run bash /tmp/yabs.sh $yabs_params
     fi
 
     chroot_run bash <(curl -sL $raw_file_prefix/part/sysbench.sh)
