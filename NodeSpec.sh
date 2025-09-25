@@ -137,11 +137,12 @@ function load_part(){
 
 function load_3rd_program(){
     _blue "Installing necessary tools (jq, ca-certificates, unzip, dmidecode)..."
+    # 隐藏 apt-get update 的输出
     chroot_run apt-get update -y > /dev/null 2>&1
-
+    # 隐藏 apt-get install 的输出
     chroot_run apt-get install -y jq ca-certificates unzip dmidecode > /dev/null 2>&1
-
-	_green "Dependencies installed successfully." 
+    
+    _green "Dependencies installed successfully." # 可以增加一句成功提示
 
     chroot_run wget https://github.com/nxtrace/NTrace-core/releases/download/v1.3.7/nexttrace_linux_amd64 -qO /usr/local/bin/nexttrace
     chroot_run chmod u+x /usr/local/bin/nexttrace
