@@ -169,7 +169,7 @@ function run_yabs(){
         if [[ "${virt,,}" != "lxc" ]]; then
             check_swap 1>&2
         fi
-        chroot_run bash -x /tmp/yabs.sh -j -w /result/$yabs_json_filename -- -5i
+        chroot_run bash -x /tmp/yabs.sh -i -j -w /result/$yabs_json_filename -- -5i
     fi
 
     chroot_run bash <(curl -sL $raw_file_prefix/part/sysbench.sh)
