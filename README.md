@@ -26,3 +26,8 @@ bash <(curl -sL https://run.nodespec.com)
 ## “拼好脚本”，减少重复测试
 
 目前方案是选取了**Yabs + IP质量 + 网络质量 + 融合怪的部分功能**，重新整合后的脚本。这种组合兼顾信息的全面性和直观性。
+
+## 致谢
+特别感谢[xykt](https://github.com/xykt)和[LloydAsp](https://github.com/LloydAsp)，本项目归根到底是以xy脚本为核心的封装和后处理；并在NodeQuality的基础上进行调整以实现完全开放和独立可控，不受限于原有api。
+
+感谢融合怪脚本，为了保证可比性，sysbench部分采用了融合怪的脚本片段
