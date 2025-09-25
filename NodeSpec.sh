@@ -366,22 +366,22 @@ function main(){
 
     if [[ "$run_yabs_test" =~ ^[Yy]$ ]]; then
         _green_bold 'Running Basic Info Test...'
-        run_yabs | tee $result_directory/$basic_info_filename
+        run_yabs 2>&1 | tee $result_directory/$basic_info_filename
     fi
 
     if [[ "$run_ip_quality_test" =~ ^[Yy]$ ]]; then
         _green_bold 'Running IP Quality Test...'
-        run_ip_quality | tee $result_directory/$ip_quality_filename
+        run_ip_quality 2>&1 | tee $result_directory/$ip_quality_filename
     fi
 
     if [[ "$run_net_quality_test" =~ ^[YyLl]$ ]]; then
         _green_bold 'Running Network Quality Test...'
-        run_net_quality | tee $result_directory/$net_quality_filename
+        run_net_quality 2>&1 | tee $result_directory/$net_quality_filename
     fi
 
     if [[ "$run_net_trace_test" =~ ^[Yy]$ ]]; then
         _green_bold 'Running Backroute Trace...'
-        run_net_trace | tee $result_directory/$backroute_trace_filename
+        run_net_trace 2>&1 | tee $result_directory/$backroute_trace_filename
     fi
 
     upload_result
@@ -389,4 +389,3 @@ function main(){
     post_cleanup
 }
 
-main
