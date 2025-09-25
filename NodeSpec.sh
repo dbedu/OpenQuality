@@ -137,9 +137,11 @@ function load_part(){
 
 function load_3rd_program(){
     _blue "Installing necessary tools (jq, ca-certificates, unzip, dmidecode)..."
-    chroot_run apt-get update -y
+    chroot_run apt-get update -y > /dev/null 2>&1
 
-    chroot_run apt-get install -y jq ca-certificates unzip dmidecode
+    chroot_run apt-get install -y jq ca-certificates unzip dmidecode > /dev/null 2>&1
+
+	_green "Dependencies installed successfully." 
 
     chroot_run wget https://github.com/nxtrace/NTrace-core/releases/download/v1.3.7/nexttrace_linux_amd64 -qO /usr/local/bin/nexttrace
     chroot_run chmod u+x /usr/local/bin/nexttrace
@@ -162,14 +164,14 @@ function run_yabs(){
     _blue "Executing YABS script with debug mode enabled..."
 
     if ! curl -s 'https://browser.geekbench.com' --connect-timeout 5 >/dev/null; then
-        chroot_run bash -x /tmp/yabs.sh -s -- -gi -w /result/$yabs_json_filename
+        chroot_run bash /tmp/yabs.sh -s -- -gi -w /result/$yabs_json_filename
         echo -e "对 IPv6 单栈的服务器来说进行测试没有意义，\n因为要将结果上传到 browser.geekbench.com 后才能拿到最后的跑分，\n但 browser.geekbench.com 仅有 IPv4、不支持 IPv6，测了也是白测。"
     else
         virt=$(dmidecode -s system-product-name 2> /dev/null || virt-what | grep -v redhat | head -n 1 || echo "none")
         if [[ "${virt,,}" != "lxc" ]]; then
             check_swap 1>&2
         fi
-        chroot_run bash -x /tmp/yabs.sh -i -j -w /result/$yabs_json_filename -- -5i
+        chroot_run bash /tmp/yabs.sh -i -j -w /result/$yabs_json_filename -- -5i
     fi
 
     chroot_run bash <(curl -sL $raw_file_prefix/part/sysbench.sh)
@@ -265,7 +267,7 @@ function upload_result(){
 
 function post_cleanup(){
     echo ""
-    read -p "Press [Enter] key to finish and clean up all temporary files..."
+    #read -p "Press [Enter] key to finish and clean up all temporary files..."
 
     chroot_run umount -R /dev &> /dev/null
     clear_mount
