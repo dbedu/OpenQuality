@@ -1,13 +1,13 @@
 #!/bin/bash
 
 current_time="$(date +%Y_%m_%d_%H_%M_%S)"
-work_dir=".openquality$current_time"
+work_dir=".NodeSpec$current_time"
 # 注意：这些URL也已修改，您需要确保它们是实际可用的
-bench_os_url="https://github.com/dbedu/OpenQuality/releases/download/v0.0.1/BenchOs.tar.gz"
-raw_file_prefix="https://raw.githubusercontent.com/dbedu/OpenQuality/refs/heads/main"
+bench_os_url="https://github.com/dbedu/NodeSpec/releases/download/v0.0.1/BenchOs.tar.gz"
+raw_file_prefix="https://raw.githubusercontent.com/dbedu/NodeSpec/refs/heads/main"
 
 if uname -m | grep -Eq 'arm|aarch64'; then
-    bench_os_url="https://github.com/dbedu/OpenQuality/releases/download/v0.0.1/BenchOs-arm.tar.gz"
+    bench_os_url="https://github.com/dbedu/NodeSpec/releases/download/v0.0.1/BenchOs-arm.tar.gz"
 fi
 
 header_info_filename=header_info.log
@@ -25,14 +25,12 @@ function start_ascii(){
     echo -ne "\e[1;36m"
     cat <<- EOF
 
- _______  _______  _______  _        _______           _______  _       __________________         
-(  ___  )(  ____ )(  ____ \( (    /|(  ___  )|\     /|(  ___  )( \      \__   __/\__   __/|\     /|
-| (   ) || (    )|| (    \/|  \  ( || (   ) || )   ( || (   ) || (         ) (      ) (   ( \   / )
-| |   | || (____)|| (__    |   \ | || |   | || |   | || (___) || |         | |      | |    \ (_) / 
-| |   | ||  _____)|  __)   | (\ \) || |   | || |   | ||  ___  || |         | |      | |     \   /  
-| |   | || (      | (      | | \   || | /\| || |   | || (   ) || |         | |      | |      ) (   
-| (___) || )      | (____/\| )  \  || (_\ \ || (___) || )   ( || (____/\___) (___   | |      | |   
-(_______)|/       (_______/|/    )_)(____\/_)(_______)|/     \|(_______/\_______/   )_(      \_/   
+.__   __.   ______    _______   _______      _______..______    _______   ______ 
+|  \ |  |  /  __  \  |       \ |   ____|    /       ||   _  \  |   ____| /      |
+|   \|  | |  |  |  | |  .--.  ||  |__      |   (----`|  |_)  | |  |__   |  ,----'
+|  . `  | |  |  |  | |  |  |  ||   __|      \   \    |   ___/  |   __|  |  |     
+|  |\   | |  `--'  | |  '--'  ||  |____ .----)   |   |  |      |  |____ |  `----.
+|__| \__|  \______/  |_______/ |_______||_______/    | _|      |_______| \______|
 
 Benchmark script for server, collects basic hardware information, IP quality and network quality
 
@@ -40,8 +38,8 @@ The benchmark will be performed in a temporary system, and all traces will be de
 Therefore, it has no impact on the original environment and supports almost all linux systems.
 
 Author: YourName@example.com
-Github: github.com/dbedu/OpenQuality
-Command: bash <(curl -sL https://run.OpenQuality.com)
+Github: github.com/dbedu/NodeSpec
+Command: bash <(curl -sL https://run.NodeSpec.com)
 
 	EOF
     echo -ne "\033[0m"
@@ -90,10 +88,10 @@ function pre_init(){
 function pre_cleanup(){
     # incase interupted last time
     clear_mount
-    if [[ "$work_dir" == *"openquality"* ]]; then
+    if [[ "$work_dir" == *"NodeSpec"* ]]; then
         rm -rf "${work_dir}"/*
     else
-        echo "Error: work_dir does not contain 'openquality'!"
+        echo "Error: work_dir does not contain 'NodeSpec'!"
         exit 1
     fi
 }
@@ -261,10 +259,10 @@ function post_cleanup(){
 
     rm -rf $work_dir/BenchOs
 
-    if [[ "$work_dir" == *"openquality"* ]]; then
+    if [[ "$work_dir" == *"NodeSpec"* ]]; then
         rm -rf "${work_dir}"/
     else
-        echo "Error: work_dir does not contain 'openquality'!"
+        echo "Error: work_dir does not contain 'NodeSpec'!"
         exit 1
     fi
 
@@ -278,7 +276,7 @@ function sig_cleanup(){
 }
 
 function post_check_mount(){
-    if mount | grep openquality$current_time ; then
+    if mount | grep NodeSpec$current_time ; then
         echo "出现了预料之外的情况，BenchOs目录的挂载未被清理干净，保险起见请重启后删除该目录" | tee $work_dir/error.log >&2
         exit
     fi
