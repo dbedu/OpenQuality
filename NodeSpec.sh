@@ -23,7 +23,7 @@ port_filename=port.log
 
 function start_ascii(){
     echo -ne "\e[1;36m"
-    cat <<- EOF
+    cat <<- 'EOF'
 
 .__   __.   ______    _______   _______      _______..______    _______   ______ 
 |  \ |  |  /  __  \  |       \ |   ____|    /       ||   _  \  |   ____| /      |
@@ -37,7 +37,7 @@ Benchmark script for server, collects basic hardware information, IP quality and
 The benchmark will be performed in a temporary system, and all traces will be deleted after that.
 Therefore, it has no impact on the original environment and supports almost all linux systems.
 
-Author: YourName@example.com
+Author: 天道总司
 Github: github.com/dbedu/NodeSpec
 Command: bash <(curl -sL https://run.NodeSpec.com)
 
