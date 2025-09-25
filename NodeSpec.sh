@@ -138,10 +138,7 @@ function load_part(){
 function load_3rd_program(){
     _blue "Installing necessary tools (jq, ca-certificates, unzip, dmidecode)..."
     chroot_run apt-get update -y
-    # 添加 ca-certificates, unzip, 和 dmidecode
-    # ca-certificates: 用于 HTTPS 验证，是 curl/wget 成功的关键
-    # unzip: YABS 可能需要用它来解压 Geekbench
-    # dmidecode: YABS 用来检测硬件信息
+
     chroot_run apt-get install -y jq ca-certificates unzip dmidecode
 
     chroot_run wget https://github.com/nxtrace/NTrace-core/releases/download/v1.3.7/nexttrace_linux_amd64 -qO /usr/local/bin/nexttrace
@@ -172,7 +169,7 @@ function run_yabs(){
         if [[ "${virt,,}" != "lxc" ]]; then
             check_swap 1>&2
         fi
-        chroot_run bash -x /tmp/yabs.sh -s -- -5i -w /result/$yabs_json_filename
+        chroot_run bash -x /tmp/yabs.sh -j -w /result/$yabs_json_filename -- -5i
     fi
 
     chroot_run bash <(curl -sL $raw_file_prefix/part/sysbench.sh)
