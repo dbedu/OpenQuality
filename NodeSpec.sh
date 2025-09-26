@@ -169,7 +169,7 @@ function run_yabs(){
     # -j : 将 JSON 结果打印到标准输出
     # -w : 将 JSON 结果写入文件
     # -5 : 明确指定运行 Geekbench 5
-    local yabs_params="-i -j -w /result/$yabs_json_filename -5"
+    local yabs_params="-i -w /result/$yabs_json_filename -5"
 
     if ! curl -s 'https://browser.geekbench.com' --connect-timeout 5 >/dev/null; then
         # IPv6-only 环境 (YABS 的 -g 标志会跳过所有 Geekbench 测试)
