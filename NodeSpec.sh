@@ -275,7 +275,7 @@ function upload_result(){
 
 function post_cleanup(){
     echo ""
-    #read -p "Press [Enter] key to finish and clean up all temporary files..."
+    read -p "Press [Enter] key to finish and clean up all temporary files..."
 
     chroot_run umount -R /dev &> /dev/null
     clear_mount
