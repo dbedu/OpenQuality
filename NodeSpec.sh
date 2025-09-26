@@ -1,5 +1,5 @@
 #!/bin/bash
-
+EXEC_DIR=$(pwd)
 current_time="$(date +%Y_%m_%d_%H_%M_%S)"
 work_dir=".NodeSpec$current_time"
 # 注意：这些URL也已修改，您需要确保它们是实际可用的
@@ -201,76 +201,61 @@ function run_net_trace(){
     chroot_run bash <(curl -Ls Net.Check.Place) -R -n -S 123 -o /result/$backroute_trace_json_filename
 }
 
+# ==================================================================
+# NEW FUNCTION: Generate and Display Final Report
+# ==================================================================
+function generate_final_report(){
+    _green_bold "\n========== Generating Final Report =========="
 
-# ==================================================================
-# FINAL CORRECTED FUNCTION: Display Parsed Results Locally
-# ==================================================================
-function display_local_summary(){
-    # 定义结果文件路径（相对于 chroot 环境）
-    local yabs_json_chroot="/result/$yabs_json_filename"
-    local ip_json_chroot="/result/$ip_quality_json_filename"
-    local net_json_chroot="/result/$net_quality_json_filename"
+    # Define paths for source logs and the final report destination
+    local header_log="$result_directory/$header_info_filename"
+    local basic_log="$result_directory/$basic_info_filename"
+    local ip_log="$result_directory/$ip_quality_json_filename" # Note: Using .json for IP Quality as it's cleaner
+    local net_log="$result_directory/$net_quality_log"
+    local trace_log="$result_directory/$backroute_trace_log"
     
-    _green_bold "========== Server Performance Summary =========="
+    local final_report_path="$EXEC_DIR/NodeSpec-Report-$current_time.log"
 
-    # --- 检查 YABS 结果文件是否存在 ---
-    if chroot_run [ -f "$yabs_json_chroot" ]; then
-        _yellow_bold "\n[System & CPU Benchmarks]"
-        # --- FIX: 直接从顶层获取分数，移除了错误的 .scores 路径 ---
-        local cpu_model=$(chroot_run "jq -r '.cpu.model' $yabs_json_chroot")
-        local geekbench5_single=$(chroot_run "jq -r '.geekbench[] | select(.version==5) | .single' $yabs_json_chroot")
-        local geekbench5_multi=$(chroot_run "jq -r '.geekbench[] | select(.version==5) | .multi' $yabs_json_chroot")
-        
-        echo "CPU Model          : $cpu_model"
-        echo "Geekbench 5 (Single) : $geekbench5_single"
-        echo "Geekbench 5 (Multi)  : $geekbench5_multi"
+    # 1. Add Header
+    [ -f "$header_log" ] && cat "$header_log" > "$final_report_path"
 
-        _yellow_bold "\n[Disk Performance (Mixed R/W)]"
-        # --- FIX: 补全所有块大小的解析，并统一格式化输出 ---
-        local disk_speed_4k=$(chroot_run "jq -r '.fio[] | select(.bs==\"4k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
-        local disk_speed_64k=$(chroot_run "jq -r '.fio[] | select(.bs==\"64k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
-        local disk_speed_512k=$(chroot_run "jq -r '.fio[] | select(.bs==\"512k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
-        local disk_speed_1m=$(chroot_run "jq -r '.fio[] | select(.bs==\"1m\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
-        
-        echo "4K Block Speed     : $disk_speed_4k"
-        echo "64K Block Speed    : $disk_speed_64k"
-        echo "512K Block Speed   : $disk_speed_512k"
-        echo "1M Block Speed     : $disk_speed_1m"
+    # 2. Filter and add Basic Info (YABS + SysBench)
+    # This awk command finds the start of each relevant section and prints from there to the end.
+    if [ -f "$basic_log" ]; then
+        echo -e "\n\n----- Basic Information & Benchmarks -----" >> "$final_report_path"
+        awk '/fio Disk Speed Tests|dd Sequential Disk Speed Tests|Geekbench [0-9] Benchmark|SysBench CPU/ {p=1} p' "$basic_log" >> "$final_report_path"
     fi
 
-    # --- IP 质量信息部分 ---
-    if chroot_run [ -f "$ip_json_chroot" ]; then
-        _yellow_bold "\n[IP Quality Information]"
-        local ip=$(chroot_run "jq -r '.ip' $ip_json_chroot")
-        local country=$(chroot_run "jq -r '.country' $ip_json_chroot")
-        local asn=$(chroot_run "jq -r '.asn' $ip_json_chroot")
-        local is_hosting=$(chroot_run "jq -r '.hosting' $ip_json_chroot")
-        
-        echo "IP Address         : $ip"
-        echo "Location           : $country"
-        echo "ASN                : $asn"
-        echo "Is Hosting/Data Center : $is_hosting"
+    # 3. Filter and add IP Quality Info
+    # The IP.Check.Place JSON output is already clean and well-formatted.
+    if [ -f "$ip_log" ]; then
+        echo -e "\n\n----- IP Quality Information -----" >> "$final_report_path"
+        # We use chroot_run here because jq is inside the chroot environment
+        chroot_run "jq -r . $ip_log" >> "$final_report_path"
     fi
 
-    # --- 网络测速部分 ---
-    if chroot_run [ -f "$net_json_chroot" ]; then
-        _yellow_bold "\n[Network Speed Test]"
-        printf "%-20s | %-15s | %-15s\n" "Location" "Upload Speed" "Download Speed"
-        echo "----------------------------------------------------"
-        chroot_run "jq -c '.speedtest[]' $net_json_chroot" | while read -r line; do
-            local name=$(echo "$line" | jq -r '.name')
-            local upload=$(echo "$line" | jq -r '.upload.speed_formatted')
-            local download=$(echo "$line" | jq -r '.download.speed_formatted')
-            printf "%-20s | %-15s | %-15s\n" "$name" "$upload" "$download"
-        done
+    # 4. Filter and add Network Quality Info
+    # This finds the start of the summary table in the network test log.
+    if [ -f "$net_log" ]; then
+        echo -e "\n\n----- Network Quality Tests -----" >> "$final_report_path"
+        awk '/Provider.*Send Speed.*Recv Speed/ {p=1} p' "$net_log" >> "$final_report_path"
     fi
 
-    _green_bold "\n================================================"
-    _blue "All tests are complete. Raw data is available in $result_directory"
-}
+    # 5. Filter and add Backroute Trace Info
+    # This finds the start of the backroute trace results.
+    if [ -f "$trace_log" ]; then
+        echo -e "\n\n----- Backroute Trace -----" >> "$final_report_path"
+        awk '/Backroute Trace/ {p=1} p' "$trace_log" >> "$final_report_path"
+    fi
 
-function upload_result(){
-    display_local_summary
+    # Display the final, combined report on the screen
+    echo -e "\n\n"
+    _green_bold "================================================="
+    _green_bold "           COMPLETE SERVER REPORT"
+    _green_bold "=================================================\n"
+    cat "$final_report_path"
+    _green_bold "\n================================================="
+    _blue "A copy of this report has been saved to: $final_report_path"
 }
 
 function post_cleanup(){
@@ -382,7 +367,7 @@ function main(){
         run_net_trace 2>&1 | tee $result_directory/$backroute_trace_filename
     fi
 
-    upload_result
+    generate_final_report
     _green_bold 'Clean Up after Installation'
     post_cleanup
 }
