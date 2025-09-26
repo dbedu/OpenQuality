@@ -203,38 +203,42 @@ function run_net_trace(){
 
 
 # ==================================================================
-# CORRECTED FUNCTION: Display Parsed Results Locally
+# FINAL CORRECTED FUNCTION: Display Parsed Results Locally
 # ==================================================================
 function display_local_summary(){
-    # Define file paths RELATIVE TO THE CHROOT ENVIRONMENT
+    # 定义结果文件路径（相对于 chroot 环境）
     local yabs_json_chroot="/result/$yabs_json_filename"
     local ip_json_chroot="/result/$ip_quality_json_filename"
     local net_json_chroot="/result/$net_quality_json_filename"
     
     _green_bold "========== Server Performance Summary =========="
 
-    # --- Check if the main yabs result file exists inside the chroot ---
+    # --- 检查 YABS 结果文件是否存在 ---
     if chroot_run [ -f "$yabs_json_chroot" ]; then
         _yellow_bold "\n[System & CPU Benchmarks]"
-        # Use chroot_run to execute jq inside the BenchOs environment
+        # --- FIX: 直接从顶层获取分数，移除了错误的 .scores 路径 ---
         local cpu_model=$(chroot_run "jq -r '.cpu.model' $yabs_json_chroot")
-        local geekbench5_score=$(chroot_run "jq -r '.geekbench[] | select(.version==5) | .scores.single' $yabs_json_chroot")
+        local geekbench5_single=$(chroot_run "jq -r '.geekbench[] | select(.version==5) | .single' $yabs_json_chroot")
+        local geekbench5_multi=$(chroot_run "jq -r '.geekbench[] | select(.version==5) | .multi' $yabs_json_chroot")
         
         echo "CPU Model          : $cpu_model"
-        echo "Geekbench 5 Score  : $geekbench5_score"
+        echo "Geekbench 5 (Single) : $geekbench5_single"
+        echo "Geekbench 5 (Multi)  : $geekbench5_multi"
 
-        _yellow_bold "\n[Disk Performance]"
-        # Note: We wrap the entire command in quotes for chroot_run
+        _yellow_bold "\n[Disk Performance (Mixed R/W)]"
+        # --- FIX: 补全所有块大小的解析，并统一格式化输出 ---
         local disk_speed_4k=$(chroot_run "jq -r '.fio[] | select(.bs==\"4k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
         local disk_speed_64k=$(chroot_run "jq -r '.fio[] | select(.bs==\"64k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
         local disk_speed_512k=$(chroot_run "jq -r '.fio[] | select(.bs==\"512k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
+        local disk_speed_1m=$(chroot_run "jq -r '.fio[] | select(.bs==\"1m\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
         
         echo "4K Block Speed     : $disk_speed_4k"
         echo "64K Block Speed    : $disk_speed_64k"
         echo "512K Block Speed   : $disk_speed_512k"
+        echo "1M Block Speed     : $disk_speed_1m"
     fi
 
-    # --- Check for IP quality results ---
+    # --- IP 质量信息部分 ---
     if chroot_run [ -f "$ip_json_chroot" ]; then
         _yellow_bold "\n[IP Quality Information]"
         local ip=$(chroot_run "jq -r '.ip' $ip_json_chroot")
@@ -248,14 +252,12 @@ function display_local_summary(){
         echo "Is Hosting/Data Center : $is_hosting"
     fi
 
-    # --- Check for network test results ---
+    # --- 网络测速部分 ---
     if chroot_run [ -f "$net_json_chroot" ]; then
         _yellow_bold "\n[Network Speed Test]"
         printf "%-20s | %-15s | %-15s\n" "Location" "Upload Speed" "Download Speed"
         echo "----------------------------------------------------"
-        # Use chroot_run to execute the entire jq loop pipeline
         chroot_run "jq -c '.speedtest[]' $net_json_chroot" | while read -r line; do
-            # Since 'line' is a local variable, we parse it on the host
             local name=$(echo "$line" | jq -r '.name')
             local upload=$(echo "$line" | jq -r '.upload.speed_formatted')
             local download=$(echo "$line" | jq -r '.download.speed_formatted')
@@ -264,10 +266,8 @@ function display_local_summary(){
     fi
 
     _green_bold "\n================================================"
-    # This path is on the host, which is correct for this message
     _blue "All tests are complete. Raw data is available in $result_directory"
 }
-
 
 function upload_result(){
     display_local_summary
