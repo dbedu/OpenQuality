@@ -389,4 +389,4 @@ function main(){
     post_cleanup
 }
 
-main()
+main
