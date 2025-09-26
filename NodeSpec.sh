@@ -203,48 +203,44 @@ function run_net_trace(){
 
 
 # ==================================================================
-# NEW FUNCTION: Display Parsed Results Locally
+# CORRECTED FUNCTION: Display Parsed Results Locally
 # ==================================================================
 function display_local_summary(){
-    # 定义结果文件路径
-    local yabs_json="$result_directory/$yabs_json_filename"
-    local ip_json="$result_directory/$ip_quality_json_filename"
-    local net_json="$result_directory/$net_quality_json_filename"
-    local trace_json="$result_directory/$backroute_trace_json_filename"
+    # Define file paths RELATIVE TO THE CHROOT ENVIRONMENT
+    local yabs_json_chroot="/result/$yabs_json_filename"
+    local ip_json_chroot="/result/$ip_quality_json_filename"
+    local net_json_chroot="/result/$net_quality_json_filename"
     
     _green_bold "========== Server Performance Summary =========="
 
-    # --- 解析和显示系统基本信息 (来自 YABS) ---
-    if [ -f "$yabs_json" ]; then
+    # --- Check if the main yabs result file exists inside the chroot ---
+    if chroot_run [ -f "$yabs_json_chroot" ]; then
         _yellow_bold "\n[System & CPU Benchmarks]"
-        local cpu_model=$(jq -r '.cpu.model' "$yabs_json")
-        local geekbench5_score=$(jq -r '.geekbench[] | select(.version==5) | .scores.single' "$yabs_json")
+        # Use chroot_run to execute jq inside the BenchOs environment
+        local cpu_model=$(chroot_run "jq -r '.cpu.model' $yabs_json_chroot")
+        local geekbench5_score=$(chroot_run "jq -r '.geekbench[] | select(.version==5) | .scores.single' $yabs_json_chroot")
         
         echo "CPU Model          : $cpu_model"
         echo "Geekbench 5 Score  : $geekbench5_score"
-    fi
 
-    # --- 解析和显示磁盘性能 (来自 YABS) ---
-    if [ -f "$yabs_json" ]; then
         _yellow_bold "\n[Disk Performance]"
-        # 提取第一个磁盘测试结果作为代表
-        local disk_test=$(jq -r '.disk_tests | to_entries | .[0].value' "$yabs_json")
-        local disk_speed_4k=$(echo "$disk_test" | jq -r '.["4k"]')
-        local disk_speed_64k=$(echo "$disk_test" | jq -r '.["64k"]')
-        local disk_speed_512k=$(echo "$disk_test" | jq -r '.["512k"]')
+        # Note: We wrap the entire command in quotes for chroot_run
+        local disk_speed_4k=$(chroot_run "jq -r '.fio[] | select(.bs==\"4k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
+        local disk_speed_64k=$(chroot_run "jq -r '.fio[] | select(.bs==\"64k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
+        local disk_speed_512k=$(chroot_run "jq -r '.fio[] | select(.bs==\"512k\") | .speed_rw' $yabs_json_chroot | awk '{printf \"%.2f MB/s\", \$1/1024}'")
         
         echo "4K Block Speed     : $disk_speed_4k"
         echo "64K Block Speed    : $disk_speed_64k"
         echo "512K Block Speed   : $disk_speed_512k"
     fi
 
-    # --- 解析和显示IP质量信息 ---
-    if [ -f "$ip_json" ]; then
+    # --- Check for IP quality results ---
+    if chroot_run [ -f "$ip_json_chroot" ]; then
         _yellow_bold "\n[IP Quality Information]"
-        local ip=$(jq -r '.ip' "$ip_json")
-        local country=$(jq -r '.country_name' "$ip_json")
-        local asn=$(jq -r '.asn' "$ip_json")
-        local is_hosting=$(jq -r '.hosting' "$ip_json")
+        local ip=$(chroot_run "jq -r '.ip' $ip_json_chroot")
+        local country=$(chroot_run "jq -r '.country' $ip_json_chroot")
+        local asn=$(chroot_run "jq -r '.asn' $ip_json_chroot")
+        local is_hosting=$(chroot_run "jq -r '.hosting' $ip_json_chroot")
         
         echo "IP Address         : $ip"
         echo "Location           : $country"
@@ -252,13 +248,14 @@ function display_local_summary(){
         echo "Is Hosting/Data Center : $is_hosting"
     fi
 
-    # --- 解析和显示网络测速结果 ---
-    if [ -f "$net_json" ]; then
+    # --- Check for network test results ---
+    if chroot_run [ -f "$net_json_chroot" ]; then
         _yellow_bold "\n[Network Speed Test]"
         printf "%-20s | %-15s | %-15s\n" "Location" "Upload Speed" "Download Speed"
         echo "----------------------------------------------------"
-        # 使用 jq 循环处理每个测速点
-        jq -c '.speedtest[]' "$net_json" | while read -r line; do
+        # Use chroot_run to execute the entire jq loop pipeline
+        chroot_run "jq -c '.speedtest[]' $net_json_chroot" | while read -r line; do
+            # Since 'line' is a local variable, we parse it on the host
             local name=$(echo "$line" | jq -r '.name')
             local upload=$(echo "$line" | jq -r '.upload.speed_formatted')
             local download=$(echo "$line" | jq -r '.download.speed_formatted')
@@ -267,6 +264,7 @@ function display_local_summary(){
     fi
 
     _green_bold "\n================================================"
+    # This path is on the host, which is correct for this message
     _blue "All tests are complete. Raw data is available in $result_directory"
 }
 
